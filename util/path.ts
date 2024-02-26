@@ -16,12 +16,8 @@ type Data = {
  * @param {Number} x2
  * @param {Number} y2
  */
-export const calcDistance = (
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number
-): number => Math.sqrt((y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1));
+export const calcDistance = (x1: number, y1: number, x2: number, y2: number): number =>
+  Math.sqrt((y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1));
 
 /**
  * Calculate a point along the profile
@@ -33,10 +29,7 @@ export const calcDistance = (
 
 type Point = [number, number];
 
-export const calcLinearPoint = (
-  strokeWidthProfile: Point[],
-  length: number
-): number | null => {
+export const calcLinearPoint = (strokeWidthProfile: Point[], length: number): number | null => {
   let width = null;
   strokeWidthProfile.forEach((point, i) => {
     if (i > 0) {
@@ -71,7 +64,7 @@ const NORMAL_POINT_DISTANCE_MAX = 50;
 export const getPathData = (
   paperPath: any,
   strokeWidthProfile: PressureProfile[],
-  baseStrokeWidth: number
+  baseStrokeWidth: number,
 ): {
   pathData: Data[];
 } => {
@@ -79,7 +72,6 @@ export const getPathData = (
 
   const lengths = [0, pathLength];
   const pathData: Data[] = [];
-
 
   /**
    * Recursively evaluate data along the path (if greater than the max tangent difference)
@@ -91,7 +83,7 @@ export const getPathData = (
     newData: Data[],
     newLengths: number[],
     length: number,
-    previousData: Data
+    previousData: Data,
   ): [Data[], number[]] => {
     let shouldAddPoint = !previousData;
     const svgPoint = paperPath.getPointAt(length);
@@ -117,27 +109,14 @@ export const getPathData = (
 
       const previousLength = previousData.p * pathLength;
       const tangentDifference = Math.abs(tangentAngle - previousData.t);
-      const normalPointDistance = calcDistance(
-        previousNp.x,
-        previousNp.y,
-        x + nx,
-        y + ny
-      );
+      const normalPointDistance = calcDistance(previousNp.x, previousNp.y, x + nx, y + ny);
 
-      if (
-        normalPointDistance > NORMAL_POINT_DISTANCE_MAX ||
-        tangentDifference > TANGENT_DIFFERENCE_MAX
-      ) {
+      if (normalPointDistance > NORMAL_POINT_DISTANCE_MAX || tangentDifference > TANGENT_DIFFERENCE_MAX) {
         newLengths.unshift((previousLength + length) / 2);
         shouldAddPoint = true;
 
         // Adjacent points are too different, add in another point between this and the previous point
-        evaluatePathAtLength(
-          newData,
-          newLengths,
-          (previousLength + length) / 2,
-          previousData
-        );
+        evaluatePathAtLength(newData, newLengths, (previousLength + length) / 2, previousData);
       } else {
         // Splices out the previous test length
         newLengths.splice(0, 1);
@@ -162,12 +141,7 @@ export const getPathData = (
   };
 
   for (let i = 0; i < lengths.length; i += 1) {
-    const [newPathData, newLengths] = evaluatePathAtLength(
-      [],
-      [lengths[i]],
-      lengths[i],
-      pathData[i - 1]
-    );
+    const [newPathData, newLengths] = evaluatePathAtLength([], [lengths[i]], lengths[i], pathData[i - 1]);
 
     // Remove repeats
     if (i > 1) {
@@ -194,19 +168,11 @@ type PressureProfile = [number, number];
  * @param {Number} baseStrokeWidth - the base stroke width without any pressure profile
  * @returns
  */
-export const getPressurePath = (
-  d: string,
-  strokeWidthProfile: PressureProfile[],
-  baseStrokeWidth: number
-) => {
+export const getPressurePath = (d: string, strokeWidthProfile: PressureProfile[], baseStrokeWidth: number) => {
   const paperPath = new window.paper.Path({});
   paperPath.setPathData(d);
 
-  const { pathData } = getPathData(
-    paperPath,
-    strokeWidthProfile,
-    baseStrokeWidth
-  );
+  const { pathData } = getPathData(paperPath, strokeWidthProfile, baseStrokeWidth);
 
   const bottomPathData = pathData
     .map((data) => ({
@@ -221,9 +187,7 @@ export const getPressurePath = (
 
   // Add the top of the new window.paper.Path
   const path = new window.paper.Path({
-    segments: [
-      ...pathData.map((p) => new window.paper.Point({ x: p.x + p.nx, y: p.y + p.ny })),
-    ],
+    segments: [...pathData.map((p) => new window.paper.Point({ x: p.x + p.nx, y: p.y + p.ny }))],
   });
 
   // Smooth / simplify the curve
@@ -233,14 +197,12 @@ export const getPressurePath = (
     new window.paper.Point({
       x: bottomStart.x + bottomStart.nx,
       y: bottomStart.y + bottomStart.ny,
-    })
+    }),
   );
 
   // Create the bottom path separately
   const bottomPath = new window.paper.Path({
-    segments: [
-      ...bottomPathData.map((p) => new window.paper.Point({ x: p.x + p.nx, y: p.y + p.ny })),
-    ],
+    segments: [...bottomPathData.map((p) => new window.paper.Point({ x: p.x + p.nx, y: p.y + p.ny }))],
   });
   // Simplify before connecting to the top (simplify / smooth makes the arc wonky)
   bottomPath.simplify();
@@ -248,9 +210,7 @@ export const getPressurePath = (
   // Combine the top and bottom
   path.addSegments(bottomPath.segments);
   // Arc to connect to the beginning
-  path.arcTo(
-    new window.paper.Point({ x: topStart.x + topStart.nx, y: topStart.y + topStart.ny })
-  );
+  path.arcTo(new window.paper.Point({ x: topStart.x + topStart.nx, y: topStart.y + topStart.ny }));
 
   return { path, data: [...pathData, ...bottomPathData] };
 };
