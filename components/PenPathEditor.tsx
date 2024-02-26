@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import dPathParse from 'd-path-parser';
 
 import Point from './Point';
 import ControlPoint from './ControlPoint';
-import { getSvgCoords } from '@/util/coords';
-import { addPoint, getDString, translateControlPoints } from '@/util';
 
 export const mirrorCp = (cpx: number, cpy: number, x: number, y: number): { x: number; y: number } => ({
   x: Math.round(2 * x - cpx),

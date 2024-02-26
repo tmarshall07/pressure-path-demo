@@ -54,12 +54,7 @@ const TANGENT_DIFFERENCE_MAX = 0.1;
 const NORMAL_POINT_DISTANCE_MAX = 50;
 
 /**
- *
- *
- * @param {HTMLElement} pathEl - a path element
- * @param {[{ x: {Number}, y: {Number} }]} strokeWidthProfile - array of numbers that correspond to stroke-widths
- * @param {Number} baseStrokeWidth - maximum absolute stroke width in pixels
- * @returns
+ * Get the data associated with the new pressure path
  */
 export const getPathData = (
   paperPath: any,
@@ -68,16 +63,17 @@ export const getPathData = (
 ): {
   pathData: Data[];
 } => {
+  // Get total length of base path
   const pathLength = paperPath.getLength();
 
+  // Lengths contains all the points to evaluate along the path
+  // starting with 0 and ending with the end of the path (i.e. the path length)
   const lengths = [0, pathLength];
+  // Contains the actual data calculated at each point along the path
   const pathData: Data[] = [];
 
   /**
    * Recursively evaluate data along the path (if greater than the max tangent difference)
-   *
-   * @param {Array} data - the working pathData array
-   * @param {Number} length - the length in pixels along the path to evaluate
    */
   const evaluatePathAtLength = (
     newData: Data[],
@@ -86,21 +82,31 @@ export const getPathData = (
     previousData: Data,
   ): [Data[], number[]] => {
     let shouldAddPoint = !previousData;
+
+    // Get the coordinates at the current length
     const svgPoint = paperPath.getPointAt(length);
 
+    // Find the tangent vector and angle at the current length
     const tangentVector = paperPath.getTangentAt(length);
     const tangentAngle = Math.atan2(tangentVector.y, tangentVector.x);
 
+    // Find the normal vector and angle at the current length
     const normalVector = paperPath.getNormalAt(length);
     const normalAngle = Math.atan2(normalVector.y, normalVector.x);
 
+    // The width (w) of the pressured stroke at the current length
     const w = calcLinearPoint(strokeWidthProfile, length / pathLength) || 0;
 
+    // The proporation (p) of the current length to the total length
     const p = length / pathLength;
+
+    // Calculate the end of the line extending from the current coordinates along
+    // the line to half the width (w) of the stroke in the direction of the normal vector (perpendicular to the path)
     const nx = Math.cos(normalAngle) * (w / 2) * baseStrokeWidth;
     const ny = Math.sin(normalAngle) * (w / 2) * baseStrokeWidth;
     const { x, y } = svgPoint;
 
+    // Determine if we need to add more points between this and the previous point
     if (previousData && previousData.t && previousData.p * pathLength > -1) {
       const previousNp = {
         x: previousData.x + previousData.nx,
@@ -111,6 +117,9 @@ export const getPathData = (
       const tangentDifference = Math.abs(tangentAngle - previousData.t);
       const normalPointDistance = calcDistance(previousNp.x, previousNp.y, x + nx, y + ny);
 
+      // If the distance between adjacent normal points is too large
+      // OR if the difference between adjacent tangent angles is too large (i.e. the path is too sharp)
+      // then we add another point to evaluate between the current two points
       if (normalPointDistance > NORMAL_POINT_DISTANCE_MAX || tangentDifference > TANGENT_DIFFERENCE_MAX) {
         newLengths.unshift((previousLength + length) / 2);
         shouldAddPoint = true;
@@ -140,6 +149,8 @@ export const getPathData = (
     return [newData, newLengths];
   };
 
+  // Evaluate the path at each length, this loop will grow the lengths array
+  // and therefore continue to run until enough points have been calculated
   for (let i = 0; i < lengths.length; i += 1) {
     const [newPathData, newLengths] = evaluatePathAtLength([], [lengths[i]], lengths[i], pathData[i - 1]);
 
@@ -152,7 +163,9 @@ export const getPathData = (
     lengths.splice(i, 0, ...newLengths);
     pathData.splice(i, 0, ...newPathData);
 
-    if (i > 10000) break; // Sanity check
+    // Sanity check to prevent infinite loops, probably
+    // want to revisit this to make it more robust
+    if (i > 10000) break;
   }
 
   return { pathData };
@@ -162,18 +175,16 @@ type PressureProfile = [number, number];
 
 /**
  * Generates a path that has a pressure profile applied to it
- *
- * @param {String} d
- * @param {[{ x: {Number}, y: {Number} }]} strokeWidthProfile - array of numbers that correspond to stroke-widths
- * @param {Number} baseStrokeWidth - the base stroke width without any pressure profile
- * @returns
  */
 export const getPressurePath = (d: string, strokeWidthProfile: PressureProfile[], baseStrokeWidth: number) => {
+  // use the paper library utilities to create a path from the passed d (definition) attribute
   const paperPath = new window.paper.Path({});
   paperPath.setPathData(d);
 
+  // Retrieve the pressure profile from the stroke width profile and base stroke width
   const { pathData } = getPathData(paperPath, strokeWidthProfile, baseStrokeWidth);
 
+  // Mirror the previous path data to create the bottom of the path
   const bottomPathData = pathData
     .map((data) => ({
       ...data,
