@@ -37,7 +37,7 @@ const App = () => {
     [1, 1],
   ]);
   const [isDragging, setIsDragging] = useState(false);
-  const [activeTool, setActiveTool] = useState<ActiveTool>(ActiveTool.Pencil);
+  const [activeTool, setActiveTool] = useState<ActiveTool>();
 
   const pathData = dPathParse(d);
   const pencilPathData = dPathParse(pencilD);
