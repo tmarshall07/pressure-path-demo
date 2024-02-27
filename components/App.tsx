@@ -387,8 +387,7 @@ const App = () => {
       code: (
         <Code
           lang="tsx"
-          code={`// Original path
-<path
+          code={`<path
   style={{
     fill: 'none',
     strokeWidth: ${strokeWidth[0]},
