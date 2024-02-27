@@ -515,7 +515,13 @@ const App = () => {
         <CodeDrawer code={steps[step]?.code} />
       </div>
 
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2 max-w-lg m-auto">
+          <h3 className="text-lg text-center">
+            {[step + 1]}. {steps[step].title}
+          </h3>
+          <p className="text-center text-slate-500">{steps[step].description}</p>
+        </div>
         <div className="flex gap-5 justify-center">
           <Button variant="outline" className="w-[200px] relative" onClick={handlePrevious} disabled={step === 0}>
             <ButtonIcon className="absolute left-0">
@@ -535,11 +541,12 @@ const App = () => {
             </ButtonIcon>
           </Button>
         </div>
-        <div className="flex flex-col gap-2 max-w-lg m-auto">
-          <h3 className="text-lg text-center">
-            {[step + 1]}. {steps[step].title}
-          </h3>
-          <p className="text-center text-slate-500">{steps[step].description}</p>
+        <div className="flex gap-2 justify-center">
+          {steps.map((s, i) => (
+            <div onClick={() => setStep(i)} key={i} className="p-2 rounded-full hover:bg-slate-900 cursor-pointer">
+              <div className={cn('w-2 h-2 rounded-full bg-slate-700', i === step ? 'bg-slate-300' : '')}></div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
