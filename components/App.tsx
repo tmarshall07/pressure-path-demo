@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react';
 import SvgViewer from './SvgViewer';
 import Script from 'next/script';
 import { getPressurePath } from '@/util/path';
@@ -18,6 +18,18 @@ import { ChevronLeft, ChevronRight, Eraser, Pen, PenTool, Pencil } from 'lucide-
 import Code from './code/Code';
 import { createCurveCode, normalCode, recursiveCode } from '@/util/data';
 import CodeDrawer from './CodeDrawer';
+
+const ButtonIcon = (props: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>) => (
+  <div
+    {...props}
+    className={`${cn(`p-1 border-slate-700 border-1 border-b-4 rounded-lg opacity-50 m-2`, props.className)}`}
+  />
+);
+
+enum Key {
+  ArrowLeft = 'ArrowLeft',
+  ArrowRight = 'ArrowRight',
+}
 
 const connectPoints = (pathData = []) => {
   if (typeof window !== 'undefined' && window.paper) {
@@ -422,6 +434,22 @@ const App = () => {
     }
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === Key.ArrowLeft) {
+      handlePrevious();
+    } else if (e.key === Key.ArrowRight) {
+      handleNext();
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [step]);
+
   return (
     <div className="w-full h-full flex flex-col gap-5 m-auto p-10">
       <Script src="/paper-full.js" onLoad={updatePath} />
@@ -489,13 +517,22 @@ const App = () => {
 
       <div className="flex flex-col gap-5">
         <div className="flex gap-5 justify-center">
-          <Button variant="outline" className="w-[200px]" onClick={handlePrevious} disabled={step === 0}>
-            <ChevronLeft className="mr-2 h-4 w-4" />
+          <Button variant="outline" className="w-[200px] relative" onClick={handlePrevious} disabled={step === 0}>
+            <ButtonIcon className="absolute left-0">
+              <ChevronLeft className="h-4 w-4" />
+            </ButtonIcon>
             Previous
           </Button>
-          <Button variant="outline" className="w-[200px]" onClick={handleNext} disabled={step === steps.length - 1}>
+          <Button
+            variant="outline"
+            className="w-[200px] relative"
+            onClick={handleNext}
+            disabled={step === steps.length - 1}
+          >
             Next
-            <ChevronRight className="ml-2 h-4 w-4" />
+            <ButtonIcon className="absolute right-0">
+              <ChevronRight className="h-4 w-4" />
+            </ButtonIcon>
           </Button>
         </div>
         <div className="flex flex-col gap-2 max-w-lg m-auto">
