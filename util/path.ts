@@ -57,14 +57,14 @@ const NORMAL_POINT_DISTANCE_MAX = 50;
  * Get the data associated with the new pressure path
  */
 export const getPathData = (
-  paperPath: any,
+  pathObject: any,
   strokeWidthProfile: PressureProfile[],
   baseStrokeWidth: number,
 ): {
   pathData: Data[];
 } => {
   // Get total length of base path
-  const pathLength = paperPath.getLength();
+  const pathLength = pathObject.getLength();
 
   // Lengths contains all the points to evaluate along the path
   // starting with 0 and ending with the end of the path (i.e. the path length)
@@ -84,14 +84,14 @@ export const getPathData = (
     let shouldAddPoint = !previousData;
 
     // Get the coordinates at the current length
-    const svgPoint = paperPath.getPointAt(length);
+    const svgPoint = pathObject.getPointAt(length);
 
     // Find the tangent vector and angle at the current length
-    const tangentVector = paperPath.getTangentAt(length);
+    const tangentVector = pathObject.getTangentAt(length);
     const tangentAngle = Math.atan2(tangentVector.y, tangentVector.x);
 
     // Find the normal vector and angle at the current length
-    const normalVector = paperPath.getNormalAt(length);
+    const normalVector = pathObject.getNormalAt(length);
     const normalAngle = Math.atan2(normalVector.y, normalVector.x);
 
     // The width (w) of the pressured stroke at the current length
@@ -108,13 +108,17 @@ export const getPathData = (
 
     // Determine if we need to add more points between this and the previous point
     if (previousData && previousData.t && previousData.p * pathLength > -1) {
+      // Get the previous normal point
       const previousNp = {
         x: previousData.x + previousData.nx,
         y: previousData.y + previousData.ny,
       };
 
+      // Get the previous length
       const previousLength = previousData.p * pathLength;
+      // Calculate the difference between the current tangent angle and the previous tangent angle
       const tangentDifference = Math.abs(tangentAngle - previousData.t);
+      // Calculate the difference between the current normal point and the previous normal point
       const normalPointDistance = calcDistance(previousNp.x, previousNp.y, x + nx, y + ny);
 
       // If the distance between adjacent normal points is too large
@@ -178,11 +182,11 @@ type PressureProfile = [number, number];
  */
 export const getPressurePath = (d: string, strokeWidthProfile: PressureProfile[], baseStrokeWidth: number) => {
   // use the paper library utilities to create a path from the passed d (definition) attribute
-  const paperPath = new window.paper.Path({});
-  paperPath.setPathData(d);
+  const pathObject = new window.paper.Path({});
+  pathObject.setPathData(d);
 
   // Retrieve the pressure profile from the stroke width profile and base stroke width
-  const { pathData } = getPathData(paperPath, strokeWidthProfile, baseStrokeWidth);
+  const { pathData } = getPathData(pathObject, strokeWidthProfile, baseStrokeWidth);
 
   // Mirror the previous path data to create the bottom of the path
   const bottomPathData = pathData

@@ -15,9 +15,23 @@ import dPathParse from 'd-path-parser';
 import { addPoint, getDString, translateControlPoints } from '@/util';
 import { getSvgCoords } from '@/util/coords';
 import { ChevronLeft, ChevronRight, Eraser, Pen, PenTool, Pencil } from 'lucide-react';
+import Code from './code/Code';
+import { normalCode, recursiveCode } from '@/util/data';
+
+const connectPoints = (pathData = []) => {
+  if (typeof window !== 'undefined' && window.paper) {
+    const path = new window.paper.Path({
+      segments: [...pathData.map((p) => new window.paper.Point({ x: p.x + p.nx, y: p.y + p.ny }))],
+    });
+    return path.getPathData();
+  }
+
+  return '';
+};
 
 const baseStrokeColor = '#8ecae6';
 const baseAccentColor = '#fb8500';
+const baseAccent2Color = '#ffb703';
 
 enum ActiveTool {
   Pen = 'pen',
@@ -33,7 +47,7 @@ const App = () => {
   const [strokeWidth, setStrokeWidth] = React.useState([200]);
   const [data, setData] = useState();
   const [strokePressure, setStrokePressure] = useState([
-    [0, 0.1],
+    [0, 0.5],
     [1, 1],
   ]);
   const [isDragging, setIsDragging] = useState(false);
@@ -160,9 +174,13 @@ const App = () => {
     downHandler = handlePencilMouseDown;
   }
 
-  const lines = data?.data.map((d, i) => (
-    <line key={i} x1={d.x} x2={d.x + d.nx} y1={d.y} y2={d.y + d.ny} stroke="#ffb703" strokeWidth={2} />
-  ));
+  const lines =
+    data?.data.map((d, i) => (
+      <line key={i} x1={d.x} x2={d.x + d.nx} y1={d.y} y2={d.y + d.ny} stroke={baseAccent2Color} strokeWidth={3} />
+    )) || [];
+
+  const points = data?.data.map((d, i) => <circle key={i} cx={d.x} cy={d.y} r={10} fill={baseAccent2Color} />);
+
   const transparentBasePath = (
     <path
       d={d}
@@ -193,10 +211,34 @@ const App = () => {
       title: 'Path with Variable Width',
       component: variablePath,
       description: 'The desired path with a variable width that corresponds to the "pressure profile."',
+      code: (
+        <Code
+          lang="tsx"
+          code={`<path
+  style={{
+    fill: '${baseAccentColor}',
+    stroke: 'none',
+  }}
+  d="${outline}"
+/>`}
+        />
+      ),
     },
     {
       title: 'Base Path',
       description: 'The original path with a constant width.',
+      code: (
+        <Code
+          lang="tsx"
+          code={`<path
+  style={{
+    fill: '${baseStrokeColor}',
+    strokeWidth: ${strokeWidth[0]},
+  }}
+  d="${d}"
+/>`}
+        />
+      ),
       component: (
         <path
           d={d}
@@ -211,6 +253,19 @@ const App = () => {
     {
       title: 'Transparent Base Path',
       description: 'The original path with a constant width and a transparent fill to show the center line.',
+      code: (
+        <Code
+          lang="tsx"
+          code={`<path
+  style={{
+    fill: 'none',
+    strokeWidth: 1,
+    stroke: "${baseAccentColor}",
+  }}
+  d="${d}"
+/>`}
+        />
+      ),
       component: (
         <>
           {transparentBasePath}
@@ -220,13 +275,72 @@ const App = () => {
     },
     {
       title: 'Normal Lines',
-      description:
-        'Normal lines are drawn perpendicular to the path at each point along the line, with length determined by the pressure profile.',
+      description: 'Normal lines are drawn perpendicular to the path at the start and end of the path.',
+      code: <Code {...normalCode} />,
       component: (
         <>
           {transparentBasePath}
           {guideLine}
-          {lines}
+          {points?.[0]}
+          {lines?.[0]}
+          {points?.[lines.length / 2 - 1]}
+          {lines?.[lines.length / 2 - 1]}
+        </>
+      ),
+    },
+    {
+      title: 'Normal Lines',
+      description: 'Normal lines drawn close enough together to yield a nearly smooth curve that fits the path.',
+      code: <Code {...normalCode} />,
+      component: (
+        <>
+          {transparentBasePath}
+          {guideLine}
+          {points?.[0]}
+          {lines?.[0]}
+          {points?.[lines.length / 2 - 1]}
+          {lines?.[lines.length / 2 - 1]}
+          <line
+            x1={data?.data[0]?.x + data?.data[0]?.nx}
+            x2={data?.data[data?.data.length / 2 - 1]?.x + data?.data[data?.data.length / 2 - 1]?.nx}
+            y1={data?.data[0]?.y + data?.data[0]?.ny}
+            y2={data?.data[data?.data.length / 2 - 1]?.y + data?.data[data?.data.length / 2 - 1]?.ny}
+            stroke={baseAccentColor}
+            strokeWidth={2}
+          />
+        </>
+      ),
+    },
+    {
+      title: 'Recursively Add Normal Lines',
+      description:
+        'Additional normal lines are added recursively to create a more accurate representation of the variable width path.',
+      code: <Code {...recursiveCode} />,
+      component: (
+        <>
+          {transparentBasePath}
+          {guideLine}
+          {lines.slice(0, lines.length / 2)}
+        </>
+      ),
+    },
+    {
+      title: 'Connect Normal Lines',
+      description: 'Now the connected normal lines fit the curve of the path.',
+      code: <Code {...recursiveCode} />,
+      component: (
+        <>
+          {transparentBasePath}
+          {guideLine}
+          {lines.slice(0, lines.length / 2)}
+          {
+            <path
+              d={connectPoints(data?.data.slice(0, lines.length / 2))}
+              stroke={baseAccentColor}
+              strokeWidth={2}
+              fill="none"
+            />
+          }
         </>
       ),
     },
@@ -269,63 +383,74 @@ const App = () => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col gap-5">
+    <div className="w-full h-full flex flex-col gap-5 m-auto">
       <Script src="/paper-full.js" onLoad={updatePath} />
 
-      <div className="flex gap-10 sm:flex-row flex-col">
-        <div className="flex gap-3">
-          <Button
-            size="icon"
-            variant={activeTool === ActiveTool.Pen ? 'default' : 'outline'}
-            onClick={() => handleSetTool(ActiveTool.Pen)}
+      <div className="flex gap-5 h-full">
+        <div className="flex-1 flex flex-col">
+          <div className="flex gap-10 sm:flex-row flex-col">
+            <div className="flex gap-3">
+              <Button
+                size="icon"
+                variant={activeTool === ActiveTool.Pen ? 'default' : 'outline'}
+                onClick={() => handleSetTool(ActiveTool.Pen)}
+              >
+                <PenTool />
+              </Button>
+              <Button
+                size="icon"
+                variant={activeTool === ActiveTool.Pencil ? 'default' : 'outline'}
+                onClick={() => handleSetTool(ActiveTool.Pencil)}
+              >
+                <Pencil />
+              </Button>
+              <Button size="icon" variant="outline">
+                <Eraser onClick={handleReset} />
+              </Button>
+            </div>
+            <div className="flex-1">
+              <div>Stroke width</div>
+              <div className="flex gap-5">
+                <Slider
+                  value={strokeWidth}
+                  onValueChange={(value) => {
+                    setStrokeWidth(value);
+                  }}
+                  max={300}
+                  min={1}
+                  step={1}
+                  className={cn('w-[60%] flex-1')}
+                />
+                <div className="p-5 bg-slate-800 rounded-lg">{strokeWidth[0]}</div>
+              </div>
+            </div>
+
+            <div className="w-[150px]">
+              <div>Stroke pressure</div>
+              <PressureCurvePicker points={strokePressure} setPoints={setStrokePressure} />
+            </div>
+          </div>
+
+          <SvgViewer
+            ref={svgRef}
+            className="bg-slate-900 rounded-lg h-[600px]"
+            onMouseDown={downHandler}
+            onMouseUp={upHandler}
+            onMouseMove={moveHandler}
           >
-            <PenTool />
-          </Button>
-          <Button
-            size="icon"
-            variant={activeTool === ActiveTool.Pencil ? 'default' : 'outline'}
-            onClick={() => handleSetTool(ActiveTool.Pencil)}
-          >
-            <Pencil />
-          </Button>
-          <Button size="icon" variant="outline">
-            <Eraser onClick={handleReset} />
-          </Button>
+            {steps[step].component}
+            {activeTool === ActiveTool.Pencil && <PencilPathEditor d={pencilD} />}
+            {activeTool === ActiveTool.Pen && <PenPathEditor d={d} />}
+          </SvgViewer>
         </div>
-        <div className="flex-1">
-          <div>Stroke width</div>
-          <div className="flex gap-5">
-            <Slider
-              value={strokeWidth}
-              onValueChange={(value) => {
-                setStrokeWidth(value);
-              }}
-              max={300}
-              min={1}
-              step={1}
-              className={cn('w-[60%] flex-1')}
-            />
-            <div className="p-5 bg-slate-800 rounded-lg">{strokeWidth[0]}</div>
+
+        <div className="w-[550px]">
+          <div className="p-5 rounded-lg h-full">
+            <h3 className="text-lg text-slate-500">Code</h3>
+            {steps[step].code && steps[step].code}
           </div>
         </div>
-
-        <div className="w-[150px]">
-          <div>Stroke pressure</div>
-          <PressureCurvePicker points={strokePressure} setPoints={setStrokePressure} />
-        </div>
       </div>
-
-      <SvgViewer
-        ref={svgRef}
-        className="bg-slate-900 rounded-lg"
-        onMouseDown={downHandler}
-        onMouseUp={upHandler}
-        onMouseMove={moveHandler}
-      >
-        {steps[step].component}
-        {activeTool === ActiveTool.Pencil && <PencilPathEditor d={pencilD} />}
-        {activeTool === ActiveTool.Pen && <PenPathEditor d={d} />}
-      </SvgViewer>
 
       <div className="flex flex-col gap-5">
         <div className="flex gap-5 justify-center">
