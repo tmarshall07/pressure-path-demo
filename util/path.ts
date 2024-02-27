@@ -1,3 +1,5 @@
+import { calcDistance, getLinearPressureFunction } from './index';
+
 type Data = {
   p: number;
   nx: number;
@@ -6,47 +8,6 @@ type Data = {
   y: number;
   t: number;
   n: number;
-};
-
-/**
- * Get the distance between two points
- *
- * @param {Number} x1
- * @param {Number} y1
- * @param {Number} x2
- * @param {Number} y2
- */
-export const calcDistance = (x1: number, y1: number, x2: number, y2: number): number =>
-  Math.sqrt((y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1));
-
-/**
- * Calculate a point along the profile
- *
- * @param {Array} strokeWidthProfile
- * @param {Number} length
- * @returns
- */
-
-type Point = [number, number];
-
-export const calcLinearPoint = (strokeWidthProfile: Point[], length: number): number | null => {
-  let width = null;
-  strokeWidthProfile.forEach((point, i) => {
-    if (i > 0) {
-      const x1 = strokeWidthProfile[i - 1][0];
-      const y1 = strokeWidthProfile[i - 1][1];
-      const x2 = point[0];
-      const y2 = point[1];
-      // TODO: MIGHT BE TROUBLE HERE WITH CHECK
-      if (length <= x2) {
-        const m = (y2 - y1) / (x2 - x1);
-        const b = y2 - m * x2;
-        width = length * m + b;
-      }
-    }
-  });
-
-  return width;
 };
 
 // Maximum difference allowed between adjacent tangent angles
@@ -72,6 +33,9 @@ export const getPathData = (
   // Contains the actual data calculated at each point along the path
   const pathData: Data[] = [];
 
+  // Get the linear pressure function from the stroke width profile (i.e. mx + b for the profile)
+  const getWidthAtLength = getLinearPressureFunction(strokeWidthProfile);
+
   /**
    * Recursively evaluate data along the path (if greater than the max tangent difference)
    */
@@ -94,8 +58,8 @@ export const getPathData = (
     const normalVector = pathObject.getNormalAt(length);
     const normalAngle = Math.atan2(normalVector.y, normalVector.x);
 
-    // The width (w) of the pressured stroke at the current length
-    const w = calcLinearPoint(strokeWidthProfile, length / pathLength) || 0;
+    // The proportional width (w) of the pressured stroke at the current length (number between 0 and 1)
+    const w = getWidthAtLength(length / pathLength) || 0;
 
     // The proporation (p) of the current length to the total length
     const p = length / pathLength;

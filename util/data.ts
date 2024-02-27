@@ -11,8 +11,8 @@ const tangentAngle = Math.atan2(tangentVector.y, tangentVector.x);
 const normalVector = pathObject.getNormalAt(length);
 const normalAngle = Math.atan2(normalVector.y, normalVector.x);
 
-// The width (w) of the pressured stroke at the current length
-const w = calcLinearPoint(strokeWidthProfile, length / pathLength) || 0;
+// The proportional width (w) of the pressured stroke at the current length (number between 0 and 1)
+const w = getWidthAtLength(length / pathLength) || 0;
 
 // The proporation (p) of the current length to the total length
 const p = length / pathLength;
