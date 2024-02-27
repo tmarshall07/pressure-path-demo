@@ -201,14 +201,14 @@ export const getPressurePath = (d: string, strokeWidthProfile: PressureProfile[]
   const bottomStart = bottomPathData[0];
 
   // Add the top of the new window.paper.Path
-  const path = new window.paper.Path({
+  const pressurePathObject = new window.paper.Path({
     segments: [...pathData.map((p) => new window.paper.Point({ x: p.x + p.nx, y: p.y + p.ny }))],
   });
 
   // Smooth / simplify the curve
-  path.simplify();
+  pressurePathObject.simplify();
   // Arc to the bottom
-  path.arcTo(
+  pressurePathObject.arcTo(
     new window.paper.Point({
       x: bottomStart.x + bottomStart.nx,
       y: bottomStart.y + bottomStart.ny,
@@ -216,16 +216,16 @@ export const getPressurePath = (d: string, strokeWidthProfile: PressureProfile[]
   );
 
   // Create the bottom path separately
-  const bottomPath = new window.paper.Path({
+  const bottomPressurePathObject = new window.paper.Path({
     segments: [...bottomPathData.map((p) => new window.paper.Point({ x: p.x + p.nx, y: p.y + p.ny }))],
   });
   // Simplify before connecting to the top (simplify / smooth makes the arc wonky)
-  bottomPath.simplify();
+  bottomPressurePathObject.simplify();
 
   // Combine the top and bottom
-  path.addSegments(bottomPath.segments);
+  pressurePathObject.addSegments(bottomPressurePathObject.segments);
   // Arc to connect to the beginning
-  path.arcTo(new window.paper.Point({ x: topStart.x + topStart.nx, y: topStart.y + topStart.ny }));
+  pressurePathObject.arcTo(new window.paper.Point({ x: topStart.x + topStart.nx, y: topStart.y + topStart.ny }));
 
-  return { path, data: [...pathData, ...bottomPathData] };
+  return { path: pressurePathObject, data: [...pathData, ...bottomPathData] };
 };

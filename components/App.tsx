@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import SvgViewer from './SvgViewer';
 import Script from 'next/script';
 import { getPressurePath } from '@/util/path';
@@ -16,7 +16,8 @@ import { addPoint, getDString, translateControlPoints } from '@/util';
 import { getSvgCoords } from '@/util/coords';
 import { ChevronLeft, ChevronRight, Eraser, Pen, PenTool, Pencil } from 'lucide-react';
 import Code from './code/Code';
-import { normalCode, recursiveCode } from '@/util/data';
+import { createCurveCode, normalCode, recursiveCode } from '@/util/data';
+import CodeDrawer from './CodeDrawer';
 
 const connectPoints = (pathData = []) => {
   if (typeof window !== 'undefined' && window.paper) {
@@ -174,36 +175,61 @@ const App = () => {
     downHandler = handlePencilMouseDown;
   }
 
-  const lines =
-    data?.data.map((d, i) => (
-      <line key={i} x1={d.x} x2={d.x + d.nx} y1={d.y} y2={d.y + d.ny} stroke={baseAccent2Color} strokeWidth={3} />
-    )) || [];
-
-  const points = data?.data.map((d, i) => <circle key={i} cx={d.x} cy={d.y} r={10} fill={baseAccent2Color} />);
-
-  const transparentBasePath = (
-    <path
-      d={d}
-      style={{
-        fill: 'none',
-        strokeWidth: strokeWidth[0],
-        stroke: transparentize(0.9, baseStrokeColor),
-      }}
-    />
+  const lines = useMemo(
+    () =>
+      data?.data.map((d, i) => (
+        <line key={i} x1={d.x} x2={d.x + d.nx} y1={d.y} y2={d.y + d.ny} stroke={baseAccent2Color} strokeWidth={3} />
+      )) || [],
+    [data],
   );
-  const outline = data?.path.getPathData();
 
-  const variablePath = <path d={outline} style={{ fill: baseAccentColor, stroke: 'none', strokeWidth: 2 }} />;
+  const points = useMemo(
+    () => data?.data.map((d, i) => <circle key={i} cx={d.x} cy={d.y} r={10} fill={baseAccent2Color} />),
+    [data],
+  );
 
-  const guideLine = (
-    <path
-      d={d}
-      style={{
-        fill: 'none',
-        strokeWidth: 1,
-        stroke: baseAccentColor,
-      }}
-    />
+  const firstAndLastPoints = useMemo(
+    () => (
+      <>
+        {points?.[0]}
+        {points?.[points.length / 2 - 1]}
+      </>
+    ),
+    [points],
+  );
+
+  const transparentBasePath = useMemo(
+    () => (
+      <path
+        d={d}
+        style={{
+          fill: 'none',
+          strokeWidth: strokeWidth[0],
+          stroke: transparentize(0.9, baseStrokeColor),
+        }}
+      />
+    ),
+    [strokeWidth, d],
+  );
+
+  const outline = useMemo(() => data?.path.getPathData(), [data]);
+  const variablePath = useMemo(
+    () => <path d={outline} style={{ fill: baseAccentColor, stroke: 'none', strokeWidth: 2 }} />,
+    [outline],
+  );
+
+  const guideLine = useMemo(
+    () => (
+      <path
+        d={d}
+        style={{
+          fill: 'none',
+          strokeWidth: 1,
+          stroke: baseAccentColor,
+        }}
+      />
+    ),
+    [d],
   );
 
   const steps = [
@@ -281,24 +307,22 @@ const App = () => {
         <>
           {transparentBasePath}
           {guideLine}
-          {points?.[0]}
+          {firstAndLastPoints}
           {lines?.[0]}
-          {points?.[lines.length / 2 - 1]}
           {lines?.[lines.length / 2 - 1]}
         </>
       ),
     },
     {
-      title: 'Normal Lines',
+      title: 'Connect Normal Lines',
       description: 'Normal lines drawn close enough together to yield a nearly smooth curve that fits the path.',
       code: <Code {...normalCode} />,
       component: (
         <>
           {transparentBasePath}
           {guideLine}
-          {points?.[0]}
+          {firstAndLastPoints}
           {lines?.[0]}
-          {points?.[lines.length / 2 - 1]}
           {lines?.[lines.length / 2 - 1]}
           <line
             x1={data?.data[0]?.x + data?.data[0]?.nx}
@@ -312,7 +336,7 @@ const App = () => {
       ),
     },
     {
-      title: 'Recursively Add Normal Lines',
+      title: 'Recursively Add More Normal Lines',
       description:
         'Additional normal lines are added recursively to create a more accurate representation of the variable width path.',
       code: <Code {...recursiveCode} />,
@@ -347,6 +371,7 @@ const App = () => {
     {
       title: 'Outline',
       description: 'Lines are drawn to connect the ends of the normal lines to create a closed path.',
+      code: <Code {...createCurveCode} />,
       component: (
         <>
           {transparentBasePath}
@@ -359,6 +384,22 @@ const App = () => {
     {
       title: 'Path with Variable Width',
       description: 'The final variable width line with the original path in the background.',
+      code: (
+        <Code
+          lang="tsx"
+          code={`// Original path
+<path
+  style={{
+    fill: 'none',
+    strokeWidth: ${strokeWidth[0]},
+    stroke: ${transparentize(0.9, baseStrokeColor)},
+  }}
+  // Use getPathData method on PaperJS object to get definition
+  d={pathObject.getPathData()}
+/>
+`}
+        />
+      ),
       component: (
         <>
           {transparentBasePath}
@@ -383,10 +424,10 @@ const App = () => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col gap-5 m-auto">
+    <div className="w-full h-full flex flex-col gap-5 m-auto p-10">
       <Script src="/paper-full.js" onLoad={updatePath} />
 
-      <div className="flex gap-5 h-full">
+      <div className="flex sm:flex-row flex-col gap-5 h-full overflow-auto">
         <div className="flex-1 flex flex-col">
           <div className="flex gap-10 sm:flex-row flex-col">
             <div className="flex gap-3">
@@ -433,23 +474,18 @@ const App = () => {
 
           <SvgViewer
             ref={svgRef}
-            className="bg-slate-900 rounded-lg h-[600px]"
+            className="bg-slate-900 rounded-lg"
             onMouseDown={downHandler}
             onMouseUp={upHandler}
             onMouseMove={moveHandler}
           >
-            {steps[step].component}
+            <g key={step}>{steps[step].component}</g>
             {activeTool === ActiveTool.Pencil && <PencilPathEditor d={pencilD} />}
             {activeTool === ActiveTool.Pen && <PenPathEditor d={d} />}
           </SvgViewer>
         </div>
 
-        <div className="w-[550px]">
-          <div className="p-5 rounded-lg h-full">
-            <h3 className="text-lg text-slate-500">Code</h3>
-            {steps[step].code && steps[step].code}
-          </div>
-        </div>
+        <CodeDrawer code={steps[step]?.code} />
       </div>
 
       <div className="flex flex-col gap-5">

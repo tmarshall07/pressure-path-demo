@@ -53,3 +53,45 @@ if (normalPointDistance > NORMAL_POINT_DISTANCE_MAX || tangentDifference > TANGE
   newLengths.splice(0, 1);
 }`,
 };
+
+export const createCurveCode = {
+  lang: 'javascript',
+  code: `// Mirror the previous path data to create the bottom of the path
+const bottomPathData = pathData
+  .map((data) => ({
+    ...data,
+    nx: -data.nx,
+    ny: -data.ny,
+  }))
+  .reverse();
+
+const topStart = pathData[0];
+const bottomStart = bottomPathData[0];
+
+// Add the top of the new window.paper.Path
+const pressurePathObject = new window.paper.Path({
+  segments: [...pathData.map((p) => new window.paper.Point({ x: p.x + p.nx, y: p.y + p.ny }))],
+});
+
+// Smooth / simplify the curve
+pressurePathObject.simplify();
+// Arc to the bottom
+pressurePathObject.arcTo(
+  new window.paper.Point({
+    x: bottomStart.x + bottomStart.nx,
+    y: bottomStart.y + bottomStart.ny,
+  }),
+);
+
+// Create the bottom path separately
+const bottomPressurePathObject = new window.paper.Path({
+  segments: [...bottomPathData.map((p) => new window.paper.Point({ x: p.x + p.nx, y: p.y + p.ny }))],
+});
+// Simplify before connecting to the top (simplify / smooth makes the arc wonky)
+bottomPressurePathObject.simplify();
+
+// Combine the top and bottom
+pressurePathObject.addSegments(bottomPressurePathObject.segments);
+// Arc to connect to the beginning
+pressurePathObject.arcTo(new window.paper.Point({ x: topStart.x + topStart.nx, y: topStart.y + topStart.ny }));`,
+};
